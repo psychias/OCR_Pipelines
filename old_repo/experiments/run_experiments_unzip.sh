@@ -22,6 +22,6 @@ do
     for seed in "${seeds[@]}"
     do
         echo "Running experiments with model: $model and random seed: $seed"
-        python finetuning_no_sampler_args.py --model_name "$model" --random_seed "$seed"
+        python tsdae_finetuning_no_sampler_args.py --model_name "$model" --random_seed "$seed"
     done
 done

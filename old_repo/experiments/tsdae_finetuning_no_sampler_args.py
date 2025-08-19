@@ -53,11 +53,7 @@ experiment_types = ["mono", "cross"]
 
 def prepare_training_samples(
     mono_df,
-    mono_df_bl_real,
-    mono_df_snp_real,
     cross_df,
-    en_fr_df,
-    en_de_df,
     batch_size=8,
     sample_size=10000,
     experiment_type="mono",
@@ -237,11 +233,7 @@ def prepare_training_samples(
 def fine_tune_model(
     model_name,
     mono_df,
-    mono_bl_df,
-    mono_snp_df,
     cross_df,
-    fr_en_df,
-    de_en_df,
     experiment_type,
     batch_size,
     sample_size,
@@ -256,11 +248,7 @@ def fine_tune_model(
     )
     train_samples = prepare_training_samples(
         mono_df,
-        mono_bl_df,
-	mono_snp_df,
         cross_df,
-        fr_en_df,
-        de_en_df,
         batch_size,
         sample_size,
         experiment_type,
@@ -287,11 +275,6 @@ def fine_tune_model(
 
 
 mono_df = pd.read_csv(mono_file)
-mono_bl_df = pd.read_csv(mono_bl_real_file)
-mono_snp_df = pd.read_csv(mono_snp_real_file)
-cross_df = pd.read_csv(cross_file)
-fr_en_df = pd.read_csv(fr_en_file)
-de_en_df = pd.read_csv(de_en_file)
 cross_df = pd.read_csv(cross_file)
 
 prefix = "query: " if "multilingual-e5-" in args.model_name else ""
@@ -300,11 +283,9 @@ for experiment in experiment_types:
     fine_tune_model(
         args.model_name,
         mono_df,
-        mono_bl_df,
-	mono_snp_df,
         cross_df,
-        fr_en_df,
-        de_en_df,
+        # fr_en_df,
+        # de_en_df,
         experiment,
         args.batch_size,
         args.sample_size,
