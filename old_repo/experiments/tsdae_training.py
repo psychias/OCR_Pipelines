@@ -85,7 +85,7 @@ def prepare_training_data():
 
 train_sentences, val_de, test_de, val_fr, test_fr = prepare_training_data()
 
-
+train_sentences = train_sentences[:20000]
 
 train_dataset = DataLoader(train_sentences, shuffle = True, batch_size = 8)
 train_dataset_noised = datasets.DenoisingAutoEncoderDataset(train_sentences)
