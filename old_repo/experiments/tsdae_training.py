@@ -29,11 +29,19 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader
 
 
+import nltk
+for pkg in ("punkt", "punkt_tab"):
+    try:
+        nltk.data.find(f"tokenizers/{pkg}")
+    except LookupError:
+        nltk.download(pkg)
 
+
+model_name = "Alibaba-NLP/gte-multilingual-base"
 
 
 def load_sentences(file):
-    with open(file, 'r') as f:
+    with open(file, 'r',encoding="utf-8") as f:
         lines = f.readlines()
 
     return lines
@@ -63,11 +71,26 @@ def prepare_training_data():
 
 train_sentences, val_de, test_de, val_fr, test_fr = prepare_training_data()
 
+
+
 train_dataset = DataLoader(train_sentences, shuffle = True, batch_size = 8)
 train_dataset_noised = datasets.DenoisingAutoEncoderDataset(train_sentences)
 train_dataloader = DataLoader(train_dataset_noised, batch_size = 8, shuffle = True)
 
-embeddings_model = models.Transformer(model_name)
+
+print('before the emb step')
+print()
+
+
+embeddings_model = models.Transformer(
+    model_name,
+    # needed for the VERY FIRST step (AutoConfig)
+    config_args={"trust_remote_code": True},
+    # needed for AutoModel
+    model_args={"trust_remote_code": True},
+    # needed for AutoTokenizer
+    tokenizer_args={"trust_remote_code": True},
+)
 pooling_model = models.Pooling(embeddings_model.get_word_embedding_dimension(), 'cls')
 
 
@@ -78,21 +101,15 @@ sample_size = 1000
 batch_size = 8
 epochs = 1
 
+train_loss = losses.DenoisingAutoEncoderLoss(model,
+                                             decoder_name_or_path="bert-base-multilingual-cased",
+                                             tie_encoder_decoder=False )
 
 
 os.environ["WANDB_DISABLED"] = "true"
 
 # train the model
 start_time = time.time()
-# model.fit(
-#     train_objectives=[(train_dataloader,train_loss )],
-#     epochs = 1,
-#     weight_decay=0,
-#     scheduler='constantlr',
-#     optimizer_params={'lr': 3e-5},
-#     show_progress_bar=True,
-#     use_amp=True # set to False if GPU does not support FP16 cores
-# )
 
 import math
 
@@ -101,6 +118,7 @@ steps_per_epoch = len(train_dataloader)
 warmup_ratio = 0.10                                # 10% of total steps
 warmup_steps = math.ceil(steps_per_epoch * num_epochs * warmup_ratio)
 
+print('before the fit')
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
     epochs=num_epochs,
