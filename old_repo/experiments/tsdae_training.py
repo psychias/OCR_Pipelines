@@ -146,4 +146,3 @@ pretrained_model_save_path = 'tsdae-gte_ge_fr'
 model.save(pretrained_model_save_path)
 
 
-
