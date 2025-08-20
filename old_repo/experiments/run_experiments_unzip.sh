@@ -14,7 +14,7 @@ fi
 
 # Define random seeds and models
 seeds=(42 100 123 777 999)
-models=("$DIR")
+models=("tsdae-gte_ge_fr")
 
 # Loop over models and seeds
 for model in "${models[@]}"

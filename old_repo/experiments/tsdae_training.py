@@ -123,7 +123,7 @@ elapsed_time = end_time - start_time
 print(f"Model trained in {elapsed_time:.2f} seconds or {elapsed_time//60} minutes, on a Google Colab Pro with A100 GPU & High-RAM.")
 
 # Save path of the model
-pretrained_model_save_path = 'output/tsdae-gte_ge_fr'
+pretrained_model_save_path = 'tsdae-gte_ge_fr'
 # Save the model locally
 model.save(pretrained_model_save_path)
 
