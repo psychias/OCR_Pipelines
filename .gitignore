@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Large zips
+*.zip
+old_repo/experiments/tsdae-gte_ge_fr.zip
