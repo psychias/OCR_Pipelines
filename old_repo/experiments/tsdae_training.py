@@ -87,6 +87,9 @@ train_sentences, val_de, test_de, val_fr, test_fr = prepare_training_data()
 
 train_sentences = train_sentences[:20000]
 
+print(f"Number of training sentences: {len(train_sentences)}")
+print(f"the device being used is {device}")
+
 train_dataset = DataLoader(train_sentences, shuffle = True, batch_size = 8)
 train_dataset_noised = datasets.DenoisingAutoEncoderDataset(train_sentences)
 train_dataloader = DataLoader(train_dataset_noised, batch_size = 8, shuffle = True)
