@@ -1,16 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
-# If you have a ZIP:
-ZIP="tsdae-gte_ge_fr.zip"
-DIR="${ZIP%.zip}"
-
-
-# Unzip only if not already extracted
-if [[ -f "$ZIP" && ! -d "$DIR" ]]; then
-  echo "Unzipping $ZIP -> $DIR"
-  unzip -q "$ZIP" -d "$(dirname "$ZIP")"
-fi
 
 # Define random seeds and models
 seeds=(42 100 123 777 999)
