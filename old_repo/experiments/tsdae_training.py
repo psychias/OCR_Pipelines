@@ -3,6 +3,7 @@
 # compore the results
 # Neccessary imports
 
+from dataclasses import dataclass
 import json
 import pandas as pd
 import math
@@ -11,9 +12,8 @@ import gzip
 import csv
 import random
 import time
-
+import torch
 from pylatexenc.latex2text import LatexNodes2Text
-
 import nltk
 nltk.download('punkt')
 
@@ -36,8 +36,22 @@ for pkg in ("punkt", "punkt_tab"):
     except LookupError:
         nltk.download(pkg)
 
+os.environ["WANDB_DISABLED"] = "true"
 
-model_name = "Alibaba-NLP/gte-multilingual-base"
+
+@dataclass
+class Config:
+    model_name: str = "Alibaba-NLP/gte-multilingual-base"
+    tokenizer_name: str = "Alibaba-NLP/gte-multilingual-base"
+    decoder_name: str = "bert-base-multilingual-cased"
+    num_epochs: int = 1
+    sample_size: int = 1000
+    batch_size: int = 8
+
+
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+config = Config()
 
 
 def load_sentences(file):
@@ -78,40 +92,29 @@ train_dataset_noised = datasets.DenoisingAutoEncoderDataset(train_sentences)
 train_dataloader = DataLoader(train_dataset_noised, batch_size = 8, shuffle = True)
 
 
-print('before the emb step')
-print()
 
 
 embeddings_model = models.Transformer(
-    model_name,
-    # needed for the VERY FIRST step (AutoConfig)
+    config.model_name,
     config_args={"trust_remote_code": True},
-    # needed for AutoModel
     model_args={"trust_remote_code": True},
-    # needed for AutoTokenizer
     tokenizer_args={"trust_remote_code": True},
-)
+).to(device)
+
 pooling_model = models.Pooling(embeddings_model.get_word_embedding_dimension(), 'cls')
-
-
 model = SentenceTransformer(modules=[embeddings_model, pooling_model])
-
-
-sample_size = 1000
-batch_size = 8
-epochs = 1
+model = model.to(device)
 
 train_loss = losses.DenoisingAutoEncoderLoss(model,
-                                             decoder_name_or_path="bert-base-multilingual-cased",
+                                             decoder_name_or_path=config.decoder_name,
                                              tie_encoder_decoder=False )
 
 
-os.environ["WANDB_DISABLED"] = "true"
+
 
 # train the model
 start_time = time.time()
 
-import math
 
 num_epochs = 1
 steps_per_epoch = len(train_dataloader)
@@ -121,7 +124,7 @@ warmup_steps = math.ceil(steps_per_epoch * num_epochs * warmup_ratio)
 print('before the fit')
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
-    epochs=num_epochs,
+    epochs=config.num_epochs,
     warmup_steps=warmup_steps,
     scheduler='warmuplinear',
     optimizer_params={'lr': 3e-5},
@@ -134,15 +137,11 @@ model.fit(
 
 end_time = time.time()
 
-# Calculate elapsed time
 elapsed_time = end_time - start_time
 
-# Print the elapsed time
 print(f"Model trained in {elapsed_time:.2f} seconds or {elapsed_time//60} minutes, on a Google Colab Pro with A100 GPU & High-RAM.")
 
-# Save path of the model
 pretrained_model_save_path = 'tsdae-gte_ge_fr'
-# Save the model locally
 model.save(pretrained_model_save_path)
 
 

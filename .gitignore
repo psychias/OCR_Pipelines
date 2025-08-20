@@ -209,3 +209,6 @@ __marimo__/
 # Large zips
 *.zip
 old_repo/experiments/tsdae-gte_ge_fr.zip
+
+
+./old_repo/experiments/tsdae-gte_ge_fr
