@@ -132,7 +132,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_simple_19.csv'
+                'simple': './evaluation_sets/CLSD_WTMT19_MP.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_simple_21.csv'
+                'simple': './evaluation_sets/CLSD_WTMT21_MP.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -196,7 +196,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/CLSD_WMT19_SPN_noise.csv'
+                'SaltnPepper': './evaluation_sets/CLSD_WMT19_SNP_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -212,7 +212,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/CLSD_WMT21_SPN_noise.csv'
+                'SaltnPepper': './evaluation_sets/CLSD_WMT21_SNP_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
