@@ -132,7 +132,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_WTMT19_MN_noise.csv'
+                'simple': './evaluation_sets/CLSD_WMT19_MN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_WTMT21_MN_noise.csv'
+                'simple': './evaluation_sets/CLSD_WMT21_MN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
