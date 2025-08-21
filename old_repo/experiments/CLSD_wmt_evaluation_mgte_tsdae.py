@@ -128,7 +128,7 @@ if __name__ == '__main__':
         {
             'name': 'Simple Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2019_adversarial_dataset.csv',
@@ -144,7 +144,7 @@ if __name__ == '__main__':
         {
             'name': 'Simple Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2021_adversarial_dataset.csv',
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2019_adversarial_dataset.csv',
@@ -176,7 +176,7 @@ if __name__ == '__main__':
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2021_adversarial_dataset.csv',
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         {
             'name': 'SaltnPepper Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2019_adversarial_dataset.csv',
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         {
             'name': 'SaltnPepper Noise',
             'prefixes': [
-                '.._.._tsdae-gte_ge_fr-cross-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
                 'clean': './evaluation/wmt2021_adversarial_dataset.csv',
