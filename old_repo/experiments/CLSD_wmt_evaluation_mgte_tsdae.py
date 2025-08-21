@@ -131,8 +131,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2019_adversarial_dataset.csv',
-                'simple': './evaluation_sets/simple_19.csv'
+                'clean': './evaluation_sets/CSLD_wmt2019_adversarial_dataset.csv',
+                'simple': './evaluation_sets/CSLD_simple_19.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -147,8 +147,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2021_adversarial_dataset.csv',
-                'simple': './evaluation_sets/simple_21.csv'
+                'clean': './evaluation_sets/CSLD_wmt2021_adversarial_dataset.csv',
+                'simple': './evaluation_sets/CSLD_simple_21.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -163,8 +163,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2019_adversarial_dataset.csv',
-                'bl-distorted': './evaluation_sets/blackletter+distort_19.csv'
+                'clean': './evaluation_sets/CSLD_wmt2019_adversarial_dataset.csv',
+                'bl-distorted': './evaluation_sets/CLSD_WMT19_BLSD.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -179,8 +179,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2021_adversarial_dataset.csv',
-                'bl-distorted': './evaluation_sets/blackletter+distort_21.csv'
+                'clean': './evaluation_sets/CSLD_wmt2021_adversarial_dataset.csv',
+                'bl-distorted': './evaluation_sets/CLSD_WMT21_BLDS_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -195,8 +195,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2019_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/noise_19.csv'
+                'clean': './evaluation_sets/CSLD_wmt2019_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation_sets/CLSD_WMT19_SPN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -211,8 +211,8 @@ if __name__ == '__main__':
                 'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation_sets/wmt2021_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/noise_21.csv'
+                'clean': './evaluation_sets/CSLD_wmt2021_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation_sets/CLSD_WMT21_SPN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
