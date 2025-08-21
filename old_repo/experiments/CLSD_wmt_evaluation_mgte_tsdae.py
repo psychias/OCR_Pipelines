@@ -164,7 +164,7 @@ if __name__ == '__main__':
             ],
             'levels': {
                 'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'bl-distorted': './evaluation_sets/CLSD_WMT19_BLSD_noise.csv'
+                'bl-distorted': './evaluation_sets/CLSD_WMT19_BLDS_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
