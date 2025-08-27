@@ -440,3 +440,6 @@ def main():
     # write_csv(OUT_DIR / "mlsum_all.csv", all_recs)
 
     print("Done.")
+
+
+main()
