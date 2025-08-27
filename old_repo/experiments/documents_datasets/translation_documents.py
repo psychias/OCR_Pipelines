@@ -153,7 +153,7 @@ def translation_is_acceptable(src: str, tgt: str) -> bool:
 # Load models
 # ----------------------------
 print(f"Loading query-gen model: {MODEL_NAME_QUERY}")
-tok_query = AutoTokenizer.from_pretrained(MODEL_NAME_QUERY)
+tok_query = AutoTokenizer.from_pretrained(MODEL_NAME_QUERY, use_fast=False)
 mdl_query = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME_QUERY).to(DEVICE).eval()
 if DEVICE == "cuda":
     mdl_query.half()
