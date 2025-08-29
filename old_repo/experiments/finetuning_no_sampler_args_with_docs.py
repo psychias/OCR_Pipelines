@@ -1,11 +1,12 @@
 import argparse
 from sentence_transformers import SentenceTransformer, InputExample, losses
 from torch.utils.data import DataLoader
+from datasets import Dataset
 import torch
 import pandas as pd
 import random
 import numpy as np
-
+from sentence_transformers import SentenceTransformerTrainer, SentenceTransformerTrainingArguments
 import os 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:32"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -489,15 +490,49 @@ def fine_tune_model(
     train_loss = losses.MultipleNegativesRankingLoss(model=model)
 
     # Configure training with memory optimizations
-    model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        epochs=args.epochs,
-        warmup_steps=int(0.1 * len(train_dataloader)),
-        show_progress_bar=True,
-        use_amp=True,  # Enable automatic mixed precision
-        optimizer_params={'lr': 2e-5},  # Lower learning rate for stability
-        gradient_accumulation_steps=args.gradient_accumulation_steps,  # Enable gradient accumulation
+    # model.fit(
+    #     train_objectives=[(train_dataloader, train_loss)],
+    #     epochs=args.epochs,
+    #     warmup_steps=int(0.1 * len(train_dataloader)),
+    #     show_progress_bar=True,
+    #     use_amp=True,  # Enable automatic mixed precision
+    #     optimizer_params={'lr': 2e-5},  # Lower learning rate for stability
+    # )
+
+    def input_examples_to_dataset(examples):
+        anchors, positives = [], []
+        for ex in examples:
+            if len(ex.texts) == 2:
+                anchors.append(ex.texts[0])
+                positives.append(ex.texts[1])
+        return Dataset.from_dict({"anchor": anchors, "positive": positives})
+
+    train_dataset = input_examples_to_dataset(train_samples)
+
+    # Create training arguments (this is where gradient accumulation lives)
+    args_hf = SentenceTransformerTrainingArguments(
+        output_dir=file_save_name,                        # where to save checkpoints
+        num_train_epochs=args.epochs,
+        per_device_train_batch_size=batch_size,
+        learning_rate=2e-5,
+        warmup_ratio=0.1,                                 # ~10% warmup like your code
+        fp16=True,                                        # like use_amp=True
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        max_grad_norm=args.max_grad_norm,
+        gradient_checkpointing=True,                      # you were enabling this manually
+        save_strategy="no",                               # disable checkpoint spam; change if you want
     )
+
+
+    trainer = SentenceTransformerTrainer(
+        model=model,
+        args=args_hf,
+        train_dataset=train_dataset,
+        loss=train_loss,
+    )
+
+    trainer.train()
+
 
     # Clear cache after training
     if torch.cuda.is_available():
