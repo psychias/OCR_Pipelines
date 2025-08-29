@@ -7,8 +7,10 @@ import random
 import numpy as np
 
 import os 
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:32"
+# More aggressive memory management
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128,garbage_collection_threshold:0.6"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["TORCH_CUDNN_V8_API_ENABLED"] = "1"
 
 
 
@@ -28,11 +30,45 @@ def print_gpu_memory():
         print(f"GPU Memory - Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB, Total: {total:.2f}GB")
 
 def optimize_memory():
-    """Clear GPU cache and run garbage collection"""
+    """Clear GPU cache and run garbage collection more aggressively"""
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    import gc
-    gc.collect()
+        torch.cuda.synchronize()
+        # Force garbage collection multiple times
+        import gc
+        for _ in range(3):
+            gc.collect()
+        torch.cuda.empty_cache()
+    else:
+        import gc
+        gc.collect()
+
+def estimate_memory_requirements(model_name, batch_size, sample_size):
+    """Estimate memory requirements for the model and training"""
+    # Rough estimates based on common model sizes
+    model_memory_gb = {
+        'multilingual-e5-large': 2.5,
+        'multilingual-e5-base': 1.5,
+        'multilingual-e5-small': 0.5,
+        'sentence-transformers/all-MiniLM-L6-v2': 0.5,
+        'sentence-transformers/all-mpnet-base-v2': 1.0,
+    }
+    
+    # Get base model memory estimate
+    base_memory = 2.0  # Default 2GB for unknown models
+    for key, mem in model_memory_gb.items():
+        if key in model_name:
+            base_memory = mem
+            break
+    
+    # Estimate additional memory for training (gradients, optimizer states, etc.)
+    training_overhead = base_memory * 3  # Roughly 3x for gradients + optimizer
+    batch_memory = batch_size * 0.1  # Rough estimate per batch item
+    
+    total_estimated = base_memory + training_overhead + batch_memory
+    print(f"Estimated memory requirement: {total_estimated:.1f}GB")
+    
+    return total_estimated
 
 # for multilingual-e5 query -> doc 
 def tag(text: str, model_name: str, kind: str): 
@@ -68,7 +104,7 @@ parser.add_argument(
 parser.add_argument(
     "--sample_size", type=int, default=10000, help="Sample size for training"
 )
-parser.add_argument("--batch_size", type=int, default=2, help="Size of batches")
+parser.add_argument("--batch_size", type=int, default=1, help="Size of batches")
 
 parser.add_argument(
     "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm for clipping"
@@ -88,8 +124,11 @@ print(f"Using device: {device}")
 # Print initial GPU memory status
 if torch.cuda.is_available():
     print_gpu_memory()
-    # Set memory fraction to prevent OOM
-    torch.cuda.set_per_process_memory_fraction(0.9)  # Use 90% of available GPU memory
+    # More conservative memory allocation to prevent fragmentation
+    torch.cuda.set_per_process_memory_fraction(0.8)  # Use 80% of available GPU memory
+    # Enable memory mapping for large models
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
 mono_file = "./finetuning_data/TED_data_random_noise.csv"
 mono_bl_real_file = "./finetuning_data/TED_data_realistic_noise.csv"
@@ -436,16 +475,33 @@ def fine_tune_model(
     file_save_name,
     prefix="",
 ):
-    # Clear GPU cache before starting
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    # Aggressive memory cleanup before starting
+    optimize_memory()
     
     print(f"Starting training for {experiment_type}...")
     print_gpu_memory()
     
-    # Load SentenceTransformer model
-    print(prefix)
-    model = SentenceTransformer(model_name, trust_remote_code=True).to(device)
+    # Estimate memory requirements
+    estimated_memory = estimate_memory_requirements(model_name, batch_size, sample_size)
+    available_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 16
+    
+    if estimated_memory > available_memory * 0.8:
+        print(f"WARNING: Estimated memory ({estimated_memory:.1f}GB) may exceed available GPU memory ({available_memory:.1f}GB)")
+        # Preemptively reduce batch size
+        if batch_size > 1:
+            batch_size = 1
+            print(f"Preemptively reducing batch size to 1")
+    
+    # Load SentenceTransformer model with memory optimization
+    print(f"Loading model: {model_name}")
+    try:
+        # Load model with device mapping to prevent memory spikes
+        model = SentenceTransformer(model_name, trust_remote_code=True, device=device)
+    except Exception as e:
+        print(f"Error loading model directly to GPU: {e}")
+        print("Loading model to CPU first, then moving to GPU...")
+        model = SentenceTransformer(model_name, trust_remote_code=True, device='cpu')
+        model = model.to(device)
     
     print("Model loaded.")
     print_gpu_memory()
@@ -453,6 +509,25 @@ def fine_tune_model(
     # Enable gradient checkpointing to save memory
     if hasattr(model[0], 'auto_model'):
         model[0].auto_model.gradient_checkpointing_enable()
+    
+    # More aggressive memory management for large models
+    available_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 16
+    free_memory_gb = (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated()) / 1024**3 if torch.cuda.is_available() else 16
+    
+    print(f"Available GPU memory: {available_memory_gb:.1f}GB, Free memory: {free_memory_gb:.1f}GB")
+    
+    # Dynamically adjust batch size based on available memory
+    if free_memory_gb < 8:  # Less than 8GB free
+        batch_size = 1
+        print(f"Very low memory detected. Setting batch size to 1")
+    elif free_memory_gb < 12:  # Less than 12GB free
+        batch_size = min(batch_size, 2)
+        print(f"Low memory detected. Limiting batch size to {batch_size}")
+    elif available_memory_gb < 16 and batch_size > 4:
+        batch_size = 4
+        print(f"Medium memory GPU detected. Limiting batch size to {batch_size}")
+    
+    print(f"Final batch size: {batch_size}")
     
     print(
         f"Training for {experiment_type} experiment with seed {args.random_seed} using model {args.model_name}..."
@@ -475,6 +550,10 @@ def fine_tune_model(
         f"Sample size {sample_size} for {experiment_type}: {len(train_samples)} samples"
     )
     
+    # Clear memory after preparing samples
+    optimize_memory()
+    print_gpu_memory()
+
     # Check if we need to reduce batch size due to memory constraints
     available_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 16
     if available_memory_gb < 16 and batch_size > 2:
@@ -486,6 +565,9 @@ def fine_tune_model(
     )
     train_loss = losses.MultipleNegativesRankingLoss(model=model)
 
+    print(f"Starting training with {len(train_dataloader)} batches...")
+    print_gpu_memory()
+
     # Configure training with memory optimizations
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
@@ -494,14 +576,20 @@ def fine_tune_model(
         show_progress_bar=True,
         use_amp=True,  # Enable automatic mixed precision
         optimizer_params={'lr': 2e-5},  # Lower learning rate for stability
+        checkpoint_path=None,  # Disable checkpointing to save memory
+        checkpoint_save_steps=0,
     )
 
     # Clear cache after training
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    optimize_memory()
+    print_gpu_memory()
 
     model.save(file_save_name)
     print(f"Model fine-tuning complete and saved as '{file_save_name}'")
+    
+    # Delete model from memory to free up space
+    del model
+    optimize_memory()
 
 
 # Load existing datasets
@@ -558,9 +646,10 @@ for experiment in experiment_types:
         print("Trying with reduced batch size...")
         optimize_memory()
         
-        # Try with half the batch size
-        reduced_batch_size = max(1, args.batch_size // 2)
+        # Try with batch size 1 first
+        reduced_batch_size = 1
         try:
+            print(f"Retrying with batch size {reduced_batch_size}...")
             fine_tune_model(
                 args.model_name,
                 mono_df,
@@ -574,9 +663,36 @@ for experiment in experiment_types:
                 experiment,
                 reduced_batch_size,
                 args.sample_size,
-                file_save_name + "_reduced_batch",
+                file_save_name + "_batch1",
                 prefix,
             )
+        except torch.cuda.OutOfMemoryError as e2:
+            print(f"Still OOM with batch size 1. Trying with reduced sample size...")
+            optimize_memory()
+            # Try with half the sample size
+            reduced_sample_size = args.sample_size // 2
+            try:
+                print(f"Retrying with sample size {reduced_sample_size} and batch size 1...")
+                fine_tune_model(
+                    args.model_name,
+                    mono_df,
+                    mono_bl_df,
+                    mono_snp_df,
+                    cross_df,
+                    fr_en_df,
+                    de_en_df,
+                    doc_fr_de_df,  
+                    doc_de_fr_df,  
+                    experiment,
+                    1,
+                    reduced_sample_size,
+                    file_save_name + "_reduced",
+                    prefix,
+                )
+            except Exception as e3:
+                print(f"Failed even with reduced sample size and batch size 1: {e3}")
+                print("Skipping this experiment due to memory constraints.")
+                continue
         except Exception as e2:
             print(f"Failed even with reduced batch size: {e2}")
             continue
