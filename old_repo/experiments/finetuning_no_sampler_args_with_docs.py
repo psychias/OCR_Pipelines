@@ -7,7 +7,8 @@ import random
 import numpy as np
 
 import os 
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:64"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:32"
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
 
@@ -17,6 +18,21 @@ def set_random_seed(seed):
     random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+def print_gpu_memory():
+    """Print current GPU memory usage"""
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3  # GB
+        reserved = torch.cuda.memory_reserved() / 1024**3   # GB
+        total = torch.cuda.get_device_properties(0).total_memory / 1024**3  # GB
+        print(f"GPU Memory - Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB, Total: {total:.2f}GB")
+
+def optimize_memory():
+    """Clear GPU cache and run garbage collection"""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    import gc
+    gc.collect()
 
 # for multilingual-e5 query -> doc 
 def tag(text: str, model_name: str, kind: str): 
@@ -52,7 +68,13 @@ parser.add_argument(
 parser.add_argument(
     "--sample_size", type=int, default=10000, help="Sample size for training"
 )
-parser.add_argument("--batch_size", type=int, default=8, help="Size of batches")
+parser.add_argument("--batch_size", type=int, default=4, help="Size of batches")
+parser.add_argument(
+    "--gradient_accumulation_steps", type=int, default=2, help="Number of steps to accumulate gradients"
+)
+parser.add_argument(
+    "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm for clipping"
+)
 parser.add_argument(
     "--epochs", type=int, default=1, help="Number of epochs for training"
 )
@@ -64,6 +86,12 @@ set_random_seed(args.random_seed)
 # Device configuration (GPU if available)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+
+# Print initial GPU memory status
+if torch.cuda.is_available():
+    print_gpu_memory()
+    # Set memory fraction to prevent OOM
+    torch.cuda.set_per_process_memory_fraction(0.9)  # Use 90% of available GPU memory
 
 mono_file = "./finetuning_data/TED_data_random_noise.csv"
 mono_bl_real_file = "./finetuning_data/TED_data_realistic_noise.csv"
@@ -410,9 +438,24 @@ def fine_tune_model(
     file_save_name,
     prefix="",
 ):
+    # Clear GPU cache before starting
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    
+    print(f"Starting training for {experiment_type}...")
+    print_gpu_memory()
+    
     # Load SentenceTransformer model
     print(prefix)
     model = SentenceTransformer(model_name, trust_remote_code=True).to(device)
+    
+    print("Model loaded.")
+    print_gpu_memory()
+    
+    # Enable gradient checkpointing to save memory
+    if hasattr(model[0], 'auto_model'):
+        model[0].auto_model.gradient_checkpointing_enable()
+    
     print(
         f"Training for {experiment_type} experiment with seed {args.random_seed} using model {args.model_name}..."
     )
@@ -433,18 +476,31 @@ def fine_tune_model(
     print(
         f"Sample size {sample_size} for {experiment_type}: {len(train_samples)} samples"
     )
+    
+    # Check if we need to reduce batch size due to memory constraints
+    available_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 16
+    if available_memory_gb < 16 and batch_size > 2:
+        print(f"Reducing batch size from {batch_size} to 2 due to limited GPU memory ({available_memory_gb:.1f}GB)")
+        batch_size = 2
 
     train_dataloader = DataLoader(
         train_samples, batch_size=batch_size, shuffle=experiment_type != "mono_batches"
     )
     train_loss = losses.MultipleNegativesRankingLoss(model=model)
 
+    # Configure training with memory optimizations
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
         epochs=args.epochs,
         warmup_steps=int(0.1 * len(train_dataloader)),
         show_progress_bar=True,
+        use_amp=True,  # Enable automatic mixed precision
+        optimizer_params={'lr': 2e-5},  # Lower learning rate for stability
     )
+
+    # Clear cache after training
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     model.save(file_save_name)
     print(f"Model fine-tuning complete and saved as '{file_save_name}'")
@@ -472,20 +528,60 @@ doc_de_fr_df = pd.read_csv(doc_de_fr_file)
 
 prefix = "query: " if "multilingual-e5-" in args.model_name else ""
 for experiment in experiment_types:
+    print(f"\n{'='*50}")
+    print(f"Starting experiment: {experiment}")
+    print(f"{'='*50}")
+    
+    # Clean up memory before each experiment
+    optimize_memory()
+    print_gpu_memory()
+    
     file_save_name = f"{args.model_name.replace('/', '_')}-{experiment}-{args.sample_size}-samples-seed{args.random_seed}"
-    fine_tune_model(
-        args.model_name,
-        mono_df,
-        mono_bl_df,
-        mono_snp_df,
-        cross_df,
-        fr_en_df,
-        de_en_df,
-        doc_fr_de_df,  
-        doc_de_fr_df,  
-        experiment,
-        args.batch_size,
-        args.sample_size,
-        file_save_name,
-        prefix,
-    )
+    
+    try:
+        fine_tune_model(
+            args.model_name,
+            mono_df,
+            mono_bl_df,
+            mono_snp_df,
+            cross_df,
+            fr_en_df,
+            de_en_df,
+            doc_fr_de_df,  
+            doc_de_fr_df,  
+            experiment,
+            args.batch_size,
+            args.sample_size,
+            file_save_name,
+            prefix,
+        )
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"CUDA OOM Error in experiment {experiment}: {e}")
+        print("Trying with reduced batch size...")
+        optimize_memory()
+        
+        # Try with half the batch size
+        reduced_batch_size = max(1, args.batch_size // 2)
+        try:
+            fine_tune_model(
+                args.model_name,
+                mono_df,
+                mono_bl_df,
+                mono_snp_df,
+                cross_df,
+                fr_en_df,
+                de_en_df,
+                doc_fr_de_df,  
+                doc_de_fr_df,  
+                experiment,
+                reduced_batch_size,
+                args.sample_size,
+                file_save_name + "_reduced_batch",
+                prefix,
+            )
+        except Exception as e2:
+            print(f"Failed even with reduced batch size: {e2}")
+            continue
+    
+    # Clean up after each experiment
+    optimize_memory()
