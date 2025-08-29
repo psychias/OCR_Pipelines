@@ -68,7 +68,7 @@ parser.add_argument(
 parser.add_argument(
     "--sample_size", type=int, default=10000, help="Sample size for training"
 )
-parser.add_argument("--batch_size", type=int, default=8, help="Size of batches")
+parser.add_argument("--batch_size", type=int, default=2, help="Size of batches")
 
 parser.add_argument(
     "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm for clipping"
@@ -88,7 +88,8 @@ print(f"Using device: {device}")
 # Print initial GPU memory status
 if torch.cuda.is_available():
     print_gpu_memory()
-
+    # Set memory fraction to prevent OOM
+    torch.cuda.set_per_process_memory_fraction(0.9)  # Use 90% of available GPU memory
 
 mono_file = "./finetuning_data/TED_data_random_noise.csv"
 mono_bl_real_file = "./finetuning_data/TED_data_realistic_noise.csv"
