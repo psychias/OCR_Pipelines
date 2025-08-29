@@ -128,11 +128,11 @@ if __name__ == '__main__':
         {
             'name': 'Simple Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
-                'simple': './evaluation/simple_19.csv'
+                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
+                'simple': './evaluation_sets/CLSD_WMT19_MN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -144,11 +144,11 @@ if __name__ == '__main__':
         {
             'name': 'Simple Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
-                'simple': './evaluation/simple_21.csv'
+                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
+                'simple': './evaluation_sets/CLSD_WMT21_MN_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -160,11 +160,11 @@ if __name__ == '__main__':
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
-                'bl-distorted': './evaluation/blackletter+distort_19.csv'
+                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
+                'bl-distorted': './evaluation_sets/CLSD_WMT19_BLDS_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -176,11 +176,11 @@ if __name__ == '__main__':
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
-                'bl-distorted': './evaluation/blackletter+distort_21.csv'
+                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
+                'bl-distorted': './evaluation_sets/CLSD_WMT21_BLDS_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -192,11 +192,11 @@ if __name__ == '__main__':
         {
             'name': 'SaltnPepper Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation/noise_19.csv'
+                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation_sets/CLSD_WMT19_SNP_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -208,11 +208,11 @@ if __name__ == '__main__':
         {
             'name': 'SaltnPepper Noise',
             'prefixes': [
-                'Alibaba-NLP_gte-multilingual-base-mono_snp_real-10000-samples',
+                'tsdae-gte_ge_fr-cross-10000-samples',
             ],
             'levels': {
-                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation/noise_21.csv'
+                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation_sets/CLSD_WMT21_SNP_noise.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
