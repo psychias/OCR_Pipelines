@@ -70,8 +70,8 @@ fr_en_file = "./finetuning_data/X-News_data_random_noise.csv"
 de_en_file ="./finetuning_data/X-News_data_random_noise.csv"
 # de_en_file = "./finetuning_data/cross_en_de.csv"
 
-doc_fr_de_file = "./documents_datasets/sample_dataset_random_noise_de.csv"  
-doc_de_fr_file = "./documents_datasets/sample_dataset_random_noise_fr.csv"  
+doc_fr_de_file = "./generate_random_noise/sample_dataset_random_noise_de.csv"  
+doc_de_fr_file = "./generate_random_noise/sample_dataset_random_noise_fr.csv"  
 
 # Experiment types - Add new document experiments
 experiment_types = ["mono", "cross","mono+cross","doc_mix_training"]
