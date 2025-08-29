@@ -423,6 +423,15 @@ def fine_tune_model(
     print(prefix)
     model = SentenceTransformer(model_name, trust_remote_code=True).to(device)
     
+    # after creating `model`:
+    if hasattr(model[0], "auto_model"):
+        am = model[0].auto_model
+        if hasattr(am, "gradient_checkpointing_enable"):
+            am.gradient_checkpointing_enable()
+        if hasattr(am.config, "use_cache"):
+            am.config.use_cache = False  # reduces memory on some backbones
+
+        
     # Enable gradient checkpointing to save memory
     if hasattr(model[0], 'auto_model'):
         model[0].auto_model.gradient_checkpointing_enable()
