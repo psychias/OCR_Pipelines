@@ -6,6 +6,10 @@ import pandas as pd
 import random
 import numpy as np
 
+import os 
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:64"
+
+
 
 def set_random_seed(seed):
     torch.manual_seed(seed)
