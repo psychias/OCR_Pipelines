@@ -74,7 +74,8 @@ doc_fr_de_file = "./generate_random_noise/sample_dataset_random_noise_de.csv"
 doc_de_fr_file = "./generate_random_noise/sample_dataset_random_noise_fr.csv"  
 
 # Experiment types - Add new document experiments
-experiment_types = ["mono", "cross","mono+cross","doc_mix_training"]
+experiment_types = ["doc_mix_training"]
+# experiment_types = ["mono", "cross","mono+cross","doc_mix_training"]
 # experiment_types = ["cross+cross_en", "mono", "cross", "mono+cross","mono_snp_real", "doc_mix_training", "doc_within_similarity", "doc_noisy_training"]  
 # experiment_types = ["cross+cross_en", "mono", "cross", "mono+cross"]
 

@@ -131,14 +131,14 @@ if __name__ == '__main__':
                 'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_WMT19_MN_noise.csv'
+                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
+                'simple': './evaluation/simple_19.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt19-"
         },
         {
@@ -147,46 +147,46 @@ if __name__ == '__main__':
                 'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'simple': './evaluation_sets/CLSD_WMT21_MN_noise.csv'
+                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
+                'simple': './evaluation/simple_21.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt21-"
         },
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                'intfloat_multilingual-e5-base-cross_clean-10000-samples-bl-distorted',
+                'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'bl-distorted': './evaluation_sets/CLSD_WMT19_BLDS_noise.csv'
+                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
+                'bl-distorted': './evaluation/blackletter+distort_19.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt19-"
         },
         {
             'name': 'Blackletter-Scanned Noise',
             'prefixes': [
-                'intfloat_multilingual-e5-base-cross_clean-10000-samples-bl-distorted',
+                'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'bl-distorted': './evaluation_sets/CLSD_WMT21_BLDS_noise.csv'
+                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
+                'bl-distorted': './evaluation/blackletter+distort_21.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt21-"
         },
         {
@@ -195,14 +195,14 @@ if __name__ == '__main__':
                 'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/CLSD_WMT19_SNP_noise.csv'
+                'clean': './evaluation/wmt2019_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation/noise_19.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt19-"
         },
         {
@@ -211,14 +211,14 @@ if __name__ == '__main__':
                 'intfloat_multilingual-e5-base-cross_clean-10000-samples-',
             ],
             'levels': {
-                'clean': './evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-                'SaltnPepper': './evaluation_sets/CLSD_WMT21_SNP_noise.csv'
+                'clean': './evaluation/wmt2021_adversarial_dataset.csv',
+                'SaltnPepper': './evaluation/noise_21.csv'
             },
             'versions_dict': {
                 'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
                 'French': ['German', 'de_adv1', 'de_adv2', 'de_adv3', 'de_adv4']
             },
-            'prefix': "",
+            'prefix': "query: ",
             'eval_dataset': "CLSD-wmt21-"
         }
     ]
