@@ -68,9 +68,9 @@ parser.add_argument(
 parser.add_argument(
     "--sample_size", type=int, default=10000, help="Sample size for training"
 )
-parser.add_argument("--batch_size", type=int, default=4, help="Size of batches")
+parser.add_argument("--batch_size", type=int, default=2, help="Size of batches")
 parser.add_argument(
-    "--gradient_accumulation_steps", type=int, default=2, help="Number of steps to accumulate gradients"
+    "--gradient_accumulation_steps", type=int, default=4, help="Number of steps to accumulate gradients"
 )
 parser.add_argument(
     "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm for clipping"
@@ -496,6 +496,7 @@ def fine_tune_model(
         show_progress_bar=True,
         use_amp=True,  # Enable automatic mixed precision
         optimizer_params={'lr': 2e-5},  # Lower learning rate for stability
+        gradient_accumulation_steps=args.gradient_accumulation_steps,  # Enable gradient accumulation
     )
 
     # Clear cache after training
