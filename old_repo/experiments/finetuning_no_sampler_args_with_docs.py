@@ -88,7 +88,6 @@ print(f"Using device: {device}")
 # Print initial GPU memory status
 if torch.cuda.is_available():
     print_gpu_memory()
-    # Set memory fraction to prevent OOM
 
 
 mono_file = "./finetuning_data/TED_data_random_noise.csv"
