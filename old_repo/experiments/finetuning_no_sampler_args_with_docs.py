@@ -1,515 +1,318 @@
-import argparse
-from sentence_transformers import SentenceTransformer, InputExample, losses
-from torch.utils.data import DataLoader
-import torch
-import pandas as pd
-import random
-import numpy as np
 
-import os 
+import os
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:32"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["WANDB_DISABLED"] = "true"   
 
+import sys
+import argparse
+import random
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import DataLoader
+from sentence_transformers import SentenceTransformer, InputExample, losses
+import shutil
+from google.colab import files
+import gc
 
+training_model_path = "./trained_models/"
+if not os.path.exists(training_model_path):
+  os.mkdir(training_model_path)
 
-def set_random_seed(seed):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
+def set_random_seed(seed: int):
     random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-# for multilingual-e5 query -> doc 
-def tag(text: str, model_name: str, kind: str): 
+def tag(text: str, model_name: str, kind: str):
     s = "" if text is None else str(text)
     if "multilingual-e5" in model_name:
         return ("query: " if kind == "query" else "passage: ") + s
     return s
 
-def add_pair(samples, left, right, kind_left, kind_right):
+def add_pair(samples, left, right, kind_left, kind_right, model_name):
     if left is None or right is None:
         return False
     a, b = str(left).strip(), str(right).strip()
     if not a or not b:
         return False
-    samples.append(InputExample(texts=[
-        tag(a, args.model_name, kind_left),
-        tag(b, args.model_name, kind_right)
-    ], label=1))
+    samples.append(
+        InputExample(
+            texts=[tag(a, model_name, kind_left), tag(b, model_name, kind_right)],
+            label=1
+        )
+    )
     return True
 
 
+parser = argparse.ArgumentParser(description="Colab doc_mix_training multi-seed run")
+parser.add_argument("--model_name", type=str, default="Alibaba-NLP/gte-multilingual-base")
+parser.add_argument("--sample_size", type=int, default=40000)
+parser.add_argument("--batch_size", type=int, default=16)
+parser.add_argument("--epochs", type=int, default=1)
+parser.add_argument("--max_grad_norm", type=float, default=1.0)
+parser.add_argument("--fp16", action="store_true", default=True)
+parser.add_argument("--qq_experiment", type=str, default="mono")  # mono, mono_bl_real, mono_snp_real, x_mono, cross, cross_clean, mono+cross
+parser.add_argument("--qd_target_total", type=int, default=20000)  # out of docs_df
+parser.add_argument("--dd_target_total", type=int, default=20000)  # out of docs_df
 
-# Command-line arguments
-parser = argparse.ArgumentParser(
-    description="Fine-tune SentenceTransformer with different seeds and models."
-)
-parser.add_argument(
-    "--random_seed", type=int, default=42, help="Random seed for reproducibility"
-)
-parser.add_argument(
-    "--model_name", type=str, required=True, help="Model name for SentenceTransformer"
-)
-parser.add_argument(
-    "--sample_size", type=int, default=10000, help="Sample size for training"
-)
-parser.add_argument("--batch_size", type=int, default=4, help="Size of batches")
+args = parser.parse_args([])  # In Colab, ignore CLI and use defaults above
 
-parser.add_argument(
-    "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm for clipping"
-)
-parser.add_argument(
-    "--epochs", type=int, default=1, help="Number of epochs for training"
-)
-args = parser.parse_args()
-
-# Set random seed
-set_random_seed(args.random_seed)
-
-# Device configuration (GPU if available)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+# ----------------------------
+# Data paths (ensure these CSVs exist in your Colab workspace)
+# ----------------------------
 mono_file = "./finetuning_data/TED_data_random_noise.csv"
 mono_bl_real_file = "./finetuning_data/TED_data_realistic_noise.csv"
 mono_snp_real_file = "./finetuning_data/TED_data_realistic_noise.csv"
-cross_file = "./finetuning_data/X-News_data_random_noise.csv" 
+cross_file = "./finetuning_data/X-News_data_random_noise.csv"
 fr_en_file = "./finetuning_data/X-News_data_random_noise.csv"
-# fr_en_file = "./finetuning_data/cross_en_fr.csv"
-de_en_file ="./finetuning_data/X-News_data_random_noise.csv"
-# de_en_file = "./finetuning_data/cross_en_de.csv"
+de_en_file = "./finetuning_data/X-News_data_random_noise.csv"
+doc_fr_de_file = "./generate_random_noise/sample_dataset_random_noise_de.csv"
+doc_de_fr_file = "./generate_random_noise/sample_dataset_random_noise_fr.csv"
 
-doc_fr_de_file = "./generate_random_noise/sample_dataset_random_noise_de.csv"  
-doc_de_fr_file = "./generate_random_noise/sample_dataset_random_noise_fr.csv"  
-
-# Experiment types - Add new document experiments
-experiment_types = ["doc_mix_training"]
-# experiment_types = ["mono", "cross","mono+cross","doc_mix_training"]
-# experiment_types = ["cross+cross_en", "mono", "cross", "mono+cross","mono_snp_real", "doc_mix_training", "doc_within_similarity", "doc_noisy_training"]  
-# experiment_types = ["cross+cross_en", "mono", "cross", "mono+cross"]
-
-
-def prepare_training_samples(
-    mono_df,
-    mono_df_bl_real,
-    mono_df_snp_real,
-    cross_df,
-    en_fr_df,
-    en_de_df,
-    doc_fr_de_df=None,  # New parameter
-    doc_de_fr_df=None,  # New parameter
-    batch_size=8,
-    sample_size=10000,
-    experiment_type="mono",
-    prefix="",
-):
-    train_samples = []
-
-    if experiment_type == "mono":
-        mono_df = mono_df.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in mono_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-    elif experiment_type == "mono_bl_real":
-        mono_df_bl_real = mono_df_bl_real.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in mono_df_bl_real.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_BLDS"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_BLDS"]], label=1
-                )
-            )
-    elif experiment_type == "mono_snp_real":
-        mono_df_snp_real = mono_df_snp_real.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in mono_df_snp_real.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_SNP"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_SNP"]], label=1
-                )
-            )
-
-    elif experiment_type == "x_mono":
-        cross_df = cross_df.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in cross_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-    elif experiment_type == "mono_batches":
-        mono_df = mono_df.sample(n=sample_size, random_state=args.random_seed)
-        de_samples = []
-        fr_samples = []
-        for _, row in mono_df.iterrows():
-            de_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-            fr_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-        # Shuffle the samples (before mixing)
-        random.shuffle(de_samples)
-        random.shuffle(fr_samples)
-        for i in range(0, len(de_samples), batch_size):
-            train_samples.extend(de_samples[i : i + batch_size])
-            train_samples.extend(fr_samples[i : i + batch_size])
-
-    elif experiment_type == "cross":
-        cross_df = cross_df.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in cross_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-    
-    elif experiment_type == "cross_clean":
-        cross_df = cross_df.sample(n=sample_size, random_state=args.random_seed)
-        for _, row in cross_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["french"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["german"]], label=1
-                )
-            )
-
-    elif experiment_type == "mono+cross":
-        mono_df = mono_df.sample(n=int(sample_size / 2), random_state=args.random_seed)
-        cross_df = cross_df.sample(
-            n=int(sample_size / 2), random_state=args.random_seed
-        )
-        for _, row in mono_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-        for _, row in cross_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-
-    elif experiment_type == "cross+cross_en":
-        cross_df = cross_df.sample(
-            n=int(sample_size / 2), random_state=args.random_seed
-        )
-        en_de_df = en_de_df.sample(
-            n=int(sample_size / 2), random_state=args.random_seed
-        )
-        en_fr_df = en_fr_df.sample(
-            n=int(sample_size / 2), random_state=args.random_seed
-        )
-        for _, row in cross_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["german"], prefix + row["french_noise_random05"]], label=1
-                )
-            )
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["french"], prefix + row["german_noise_random05"]], label=1
-                )
-            )
-        for _, row in en_de_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["en"], prefix + row["de_005"]], label=1
-                )
-            )
-        for _, row in en_fr_df.iterrows():
-            train_samples.append(
-                InputExample(
-                    texts=[prefix + row["en"], prefix + row["fr_005"]], label=1
-                )
-            )
-    elif experiment_type == "doc_mix_training":
-        # 1) doc_clean ↔ doc_noisy                 (same-language)
-        # 2) translation_clean ↔ translation_noisy (other-language)
-        # 3) query_clean → translation_noisy       (clean→OCR retrieval)
-        # 4) doc_clean ↔ translation_noisy         (cross-lingual doc→doc)  # optional
-        USE_CROSS_DOCDOC = True
-        USE_SUMMARY = True
-        pairs_per_row = 4 + int(USE_CROSS_DOCDOC) + int(USE_SUMMARY)
-
-        target_pairs = sample_size
-        count = 0
-
-        def build_from_df(df):
-            nonlocal count
-            if df is None or len(df) == 0 or count >= target_pairs:
-                return
-            rows_needed = max(1, (target_pairs - count + pairs_per_row - 1) // pairs_per_row)
-            rows_needed = min(rows_needed, len(df))
-            for _, row in df.sample(n=rows_needed, random_state=args.random_seed).iterrows():
-                if add_pair(train_samples, row.get("doc_text"), row.get("doc_text_noised"), "doc", "doc"):
-                    count += 1
-                    if count >= target_pairs: break
-
-                if add_pair(train_samples, row.get("translation"), row.get("translation_noised"), "doc", "doc"):
-                    count += 1
-                    if count >= target_pairs: break
-
-                if add_pair(train_samples, row.get("query"), row.get("translation_noised"), "query", "doc"):
-                    count += 1
-                    if count >= target_pairs: break
-                if add_pair(train_samples, row.get("query"), row.get("doc_text_noised"), "query", "doc"):
-                    count += 1
-                    if count >= target_pairs: break
-                if add_pair(train_samples, row.get("summary"), row.get("summary_noised"), "doc","doc"):
-                    count += 1
-
-                if USE_CROSS_DOCDOC and add_pair(train_samples, row.get("doc_text"), row.get("translation_noised"), "doc", "doc"):
-                    count += 1
-                    if count >= target_pairs: break
-
-                if count >= target_pairs:
-                    break
-
-        build_from_df(doc_fr_de_df)
-        if count < target_pairs:
-            build_from_df(doc_de_fr_df)
-
-    elif experiment_type == "doc_within_similarity":
-        # Each row generates exactly 7 pairs:
-        # - 4 clean-to-noisy pairs (doc_text, query, summary, translation)
-        # - 3 cross-lingual pairs (doc_text→trans_noised, query→trans_noised, summary→trans_noised)
-        # Target: ~sample_size total pairs, so sample rows_needed = sample_size // 7
-        pairs_per_row = 7
-        rows_needed = sample_size // pairs_per_row
-        
-        if doc_fr_de_df is not None:
-            doc_fr_de_sample = doc_fr_de_df.sample(n=min(sample_size//2, len(doc_fr_de_df)), random_state=args.random_seed)
-        if doc_de_fr_df is not None:
-            doc_de_fr_sample = doc_de_fr_df.sample(n=min(sample_size//2, len(doc_de_fr_df)), random_state=args.random_seed)
-        
-        if doc_fr_de_df is not None:
-            for _, row in doc_fr_de_sample.iterrows():
-                train_samples.extend([
-                    InputExample(texts=[prefix + str(row["doc_text"]), prefix + str(row["doc_text_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["query"]), prefix + str(row["query_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary"]), prefix + str(row["summary_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["translation"]), prefix + str(row["translation_noised"])], label=1),
-                    
-                    InputExample(texts=[prefix + str(row["doc_text"]), prefix + str(row["translation_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["query"]), prefix + str(row["translation_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary"]), prefix + str(row["translation_noised"])], label=1),
-                ])
-        
-        if doc_de_fr_df is not None:
-            for _, row in doc_de_fr_sample.iterrows():
-                train_samples.extend([
-                    InputExample(texts=[prefix + str(row["doc_text"]), prefix + str(row["doc_text_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["query"]), prefix + str(row["query_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary"]), prefix + str(row["summary_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["translation"]), prefix + str(row["translation_noised"])], label=1),
-                    
-                    InputExample(texts=[prefix + str(row["doc_text"]), prefix + str(row["translation_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["query"]), prefix + str(row["translation_noised"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary"]), prefix + str(row["translation_noised"])], label=1),
-                ])
-
-    elif experiment_type == "doc_noisy_training":
-        # Each row generates exactly 7 pairs:
-        # - 4 noisy-to-clean pairs (doc_text_noised→doc_text, etc.)
-        # - 3 cross-lingual pairs (doc_text_noised→translation, etc.)
-        # Target: ~sample_size total pairs, so sample rows_needed = sample_size // 7
-        pairs_per_row = 7
-        rows_needed = sample_size // pairs_per_row
-        
-        if doc_fr_de_df is not None:
-            doc_fr_de_sample = doc_fr_de_df.sample(n=min(sample_size//2, len(doc_fr_de_df)), random_state=args.random_seed)
-        if doc_de_fr_df is not None:
-            doc_de_fr_sample = doc_de_fr_df.sample(n=min(sample_size//2, len(doc_de_fr_df)), random_state=args.random_seed)
-        
-        if doc_fr_de_df is not None:
-            for _, row in doc_fr_de_sample.iterrows():
-                train_samples.extend([
-                    InputExample(texts=[prefix + str(row["doc_text_noised"]), prefix + str(row["doc_text"])], label=1),
-                    InputExample(texts=[prefix + str(row["query_noised"]), prefix + str(row["query"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary_noised"]), prefix + str(row["summary"])], label=1),
-                    InputExample(texts=[prefix + str(row["translation_noised"]), prefix + str(row["translation"])], label=1),
-                    
-                    InputExample(texts=[prefix + str(row["doc_text_noised"]), prefix + str(row["translation"])], label=1),
-                    InputExample(texts=[prefix + str(row["query_noised"]), prefix + str(row["translation"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary_noised"]), prefix + str(row["translation"])], label=1),
-                ])
-        
-        if doc_de_fr_df is not None:
-            for _, row in doc_de_fr_sample.iterrows():
-                train_samples.extend([
-                    InputExample(texts=[prefix + str(row["doc_text_noised"]), prefix + str(row["doc_text"])], label=1),
-                    InputExample(texts=[prefix + str(row["query_noised"]), prefix + str(row["query"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary_noised"]), prefix + str(row["summary"])], label=1),
-                    InputExample(texts=[prefix + str(row["translation_noised"]), prefix + str(row["translation"])], label=1),
-                    
-                    InputExample(texts=[prefix + str(row["doc_text_noised"]), prefix + str(row["translation"])], label=1),
-                    InputExample(texts=[prefix + str(row["query_noised"]), prefix + str(row["translation"])], label=1),
-                    InputExample(texts=[prefix + str(row["summary_noised"]), prefix + str(row["translation"])], label=1),
-                ])
-
-    if experiment_type != "mono_batches":
-        random.shuffle(train_samples)
-    return train_samples
-
-
-def fine_tune_model(
-    model_name,
-    mono_df,
-    mono_bl_df,
-    mono_snp_df,
-    cross_df,
-    fr_en_df,
-    de_en_df,
-    doc_fr_de_df,
-    doc_de_fr_df,
-    experiment_type,
-    batch_size,
-    sample_size,
-    file_save_name,
-    prefix="",
-):
-    # Clear GPU cache before starting
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    
-    # Load SentenceTransformer model
-    print(prefix)
-    model = SentenceTransformer(model_name, trust_remote_code=True).to(device)
-    
-    # after creating `model`:
-    if hasattr(model[0], "auto_model"):
-        am = model[0].auto_model
-        if hasattr(am, "gradient_checkpointing_enable"):
-            am.gradient_checkpointing_enable()
-        if hasattr(am.config, "use_cache"):
-            am.config.use_cache = False  # reduces memory on some backbones
-
-        
-    # Enable gradient checkpointing to save memory
-    if hasattr(model[0], 'auto_model'):
-        model[0].auto_model.gradient_checkpointing_enable()
-    
-    print(
-        f"Training for {experiment_type} experiment with seed {args.random_seed} using model {args.model_name}..."
-    )
-    train_samples = prepare_training_samples(
-        mono_df,
-        mono_bl_df,
-        mono_snp_df,
-        cross_df,
-        fr_en_df,
-        de_en_df,
-        doc_fr_de_df, 
-        doc_de_fr_df,  
-        batch_size,
-        sample_size,
-        experiment_type,
-        prefix,
-    )
-    print(
-        f"Sample size {sample_size} for {experiment_type}: {len(train_samples)} samples"
-    )
-
-    train_dataloader = DataLoader(
-        train_samples, batch_size=batch_size, shuffle=experiment_type != "mono_batches"
-    )
-    train_loss = losses.MultipleNegativesRankingLoss(model=model)
-
-    model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        epochs=args.epochs,
-        warmup_steps=int(0.1 * len(train_dataloader)),
-        show_progress_bar=True,
-        
-    )
-
-    model.save(file_save_name)
-    print(f"Model fine-tuning complete and saved as '{file_save_name}'")
-
-
-# Load existing datasets
+# ----------------------------
+# Load datasets once
+# ----------------------------
 mono_df = pd.read_csv(mono_file)
 mono_bl_df = pd.read_csv(mono_bl_real_file)
 mono_snp_df = pd.read_csv(mono_snp_real_file)
 cross_df = pd.read_csv(cross_file)
 fr_en_df = pd.read_csv(fr_en_file)
 de_en_df = pd.read_csv(de_en_file)
-
 doc_fr_de_df = pd.read_csv(doc_fr_de_file)
 doc_de_fr_df = pd.read_csv(doc_de_fr_file)
-
-# mono = TED
-# Cross = X NEWS
-# ta mono bl snp  ktlp -> german,german_noise_BLDS,german_noise_SNP,french,french_noise_BLDS,french_noise_SNP
-# eno ta "non real" mila gia random noise
-# random noise -> german,french,german_noise_random05,german_noise_random10,german_noise_random15,french_noise_random05,french_noise_random10,french_noise_random15
+docs_df = pd.concat([doc_fr_de_df, doc_de_fr_df], ignore_index=True)
+docs_df = docs_df.sample(frac=1,random_state=42).reset_index(drop=True)
 
 
+def build_doc_mix_samples(
+    model_name: str,
+    _sample_size_ignored: int,
+    seed: int,
+    qq_target_total: int = 20000,   # fixed: paper-like q→q
+    qd_target_total: int = None,    # set from args
+    dd_target_total: int = None,    # set from args
+):
+    assert args.batch_size == 8, "This packer assumes batch_size=8 for (4,2,2) mixing"
+    if qd_target_total is None: qd_target_total = args.qd_target_total
+    if dd_target_total is None: dd_target_total = args.dd_target_total
+    rng = random.Random(seed)
 
+    # ---------- helpers ----------
+    def need_cols(df, cols, name):
+        miss = [c for c in cols if c not in df.columns]
+        if miss: raise ValueError(f"{name} missing columns: {miss}")
 
-prefix = "query: " if "multilingual-e5-" in args.model_name else ""
-for experiment in experiment_types:
-    file_save_name = f"{args.model_name.replace('/', '_')}-{experiment}-{args.sample_size}-samples-seed{args.random_seed}"
-    fine_tune_model(
-        args.model_name,
-        mono_df,
-        mono_bl_df,
-        mono_snp_df,
-        cross_df,
-        fr_en_df,
-        de_en_df,
-        doc_fr_de_df,  
-        doc_de_fr_df,  
-        experiment,
-        args.batch_size,
-        args.sample_size,
-        file_save_name,
-        prefix,
+    def add_pair(pool, a, b, kind_a, kind_b):
+
+        if a is None or b is None: return 0
+        s, t = str(a).strip(), str(b).strip()
+        if not s or not t or s == t: return 0
+        pool.append(InputExample(texts=[tag(s, model_name, kind_a),
+                                        tag(t, model_name, kind_b)], label=1))
+        return 1
+
+    # ---------- q→q from paper data (build ALL candidates, then trim/upsample to 20k) ----------
+    def all_qq_from(df, pairs):
+        out = []
+        if df is None or len(df) == 0: return out
+        for _, row in df.sample(frac=1.0, random_state=seed).iterrows():
+            for (c1, c2) in pairs:
+                add_pair(out, row.get(c1), row.get(c2), "query", "query")
+        return out
+
+    def build_qq_pool_from_paper(mono_df, mono_bl_df, mono_snp_df, cross_df, exp):
+        exp = exp.strip().lower()
+        cand = []
+        if exp in ("mono", "mono_batches"):
+            need_cols(mono_df, ["german","german_noise_random05","french","french_noise_random05"], "mono_df")
+            cand += all_qq_from(mono_df, [("german","german_noise_random05"),
+                                          ("french","french_noise_random05")])
+        elif exp == "mono_bl_real":
+            need_cols(mono_bl_df, ["german","german_noise_BLDS","french","french_noise_BLDS"], "mono_bl_df")
+            cand += all_qq_from(mono_bl_df, [("german","german_noise_BLDS"),
+                                             ("french","french_noise_BLDS")])
+        elif exp == "mono_snp_real":
+            need_cols(mono_snp_df, ["german","german_noise_SNP","french","french_noise_SNP"], "mono_snp_df")
+            cand += all_qq_from(mono_snp_df, [("german","german_noise_SNP"),
+                                              ("french","french_noise_SNP")])
+        elif exp == "x_mono":
+            need_cols(cross_df, ["german","german_noise_random05","french","french_noise_random05"], "cross_df")
+            cand += all_qq_from(cross_df, [("german","german_noise_random05"),
+                                           ("french","french_noise_random05")])
+        elif exp == "cross":
+            need_cols(cross_df, ["german","french_noise_random05","french","german_noise_random05"], "cross_df")
+            cand += all_qq_from(cross_df, [("german","french_noise_random05"),
+                                           ("french","german_noise_random05")])
+        elif exp == "cross_clean":
+            need_cols(cross_df, ["german","french"], "cross_df")
+            cand += all_qq_from(cross_df, [("german","french"),
+                                           ("french","german")])
+        elif exp == "mono+cross":
+            need_cols(mono_df,  ["german","german_noise_random05","french","french_noise_random05"], "mono_df")
+            need_cols(cross_df, ["german","french_noise_random05","french","german_noise_random05"], "cross_df")
+            cand += all_qq_from(mono_df,  [("german","german_noise_random05"),
+                                           ("french","french_noise_random05")])
+            cand += all_qq_from(cross_df, [("german","french_noise_random05"),
+                                           ("french","german_noise_random05")])
+        else:
+            raise ValueError(f"Unknown qq_experiment='{exp}'")
+
+        rng.shuffle(cand)
+        if len(cand) >= qq_target_total:
+            return cand[:qq_target_total]
+        need = qq_target_total - len(cand)
+        if len(cand) == 0:
+            raise ValueError("No valid q→q pairs found; check paper CSV columns.")
+        print(f"[qq] had {len(cand)} < {qq_target_total}; upsample +{need}.")
+        return cand + rng.choices(cand, k=need)
+
+    qq_pool = build_qq_pool_from_paper(
+        mono_df=mono_df, mono_bl_df=mono_bl_df, mono_snp_df=mono_snp_df,
+        cross_df=cross_df, exp=args.qq_experiment
     )
+
+    # ---------- q→d and d↔d from ALL rows in docs_df ----------
+    # Build candidates by iterating every row (no disjoint split).
+    qd_pool, dd_pool = [], []
+
+    for _, row in docs_df.iterrows():
+
+        # q → d: prefer translation_noised, fallback to doc_text_noised
+        add_pair(qd_pool, row.get("query"), row.get("translation_noised"), "query", "doc")
+        add_pair(qd_pool, row.get("query"), row.get("doc_text_noised"), "query", "doc")
+
+        # d ↔ d: prefer doc_text ↔ doc_text_noised, fallback to translation ↔ translation_noised
+        add_pair(dd_pool, row.get("doc_text"), row.get("doc_text_noised"), "doc", "doc")
+        add_pair(dd_pool, row.get("translation"), row.get("translation_noised"), "doc", "doc")
+
+    if len(qd_pool) < qd_target_total:
+        need = qd_target_total - len(qd_pool)
+        if len(qd_pool) == 0:
+            raise ValueError("No q→d pairs could be built; check docs_df columns/values.")
+        qd_pool += rng.choices(qd_pool, k=need)
+        print(f"[qd] upsample +{need} to reach {qd_target_total}.")
+    if len(dd_pool) < dd_target_total:
+        need = dd_target_total - len(dd_pool)
+        if len(dd_pool) == 0:
+            raise ValueError("No d↔d pairs could be built; check docs_df columns/values.")
+        dd_pool += rng.choices(dd_pool, k=need)
+        print(f"[dd] upsample +{need} to reach {dd_target_total}.")
+
+    rng.shuffle(qq_pool); rng.shuffle(qd_pool); rng.shuffle(dd_pool)
+
+    # ---------- exact packing to 40k: (qq, qd, dd) = (4,2,2) ----------
+    batches = qq_target_total // 4  # 20000 / 4 = 5000
+    # assert batches == qd_target_total // 2 == dd_target_total // 2, "Targets must align to (4,2,2)"
+    qi = di = si = 0
+    samples = []
+    for _ in range(batches):
+        batch = []
+        batch += qq_pool[qi:qi+4]; qi += 6
+        batch += qd_pool[di:di+2]; di += 5
+        batch += dd_pool[si:si+2]; si += 5
+        if len(batch) != 8: raise RuntimeError(f"Packed {len(batch)} != 8")
+        samples.extend(batch)
+
+    print(f"[exact-mix-40k] batches={len(samples)//8} | qq=20000, qd={qd_target_total}, dd={dd_target_total} | total={len(samples)}")
+    return samples
+
+
+
+def train_one_seed(seed: int):
+    print(f"\n===== Seed {seed} =====")
+    set_random_seed(seed)
+
+    # Build samples for this seed
+    train_samples = build_doc_mix_samples(args.model_name, args.sample_size, seed)
+    print(f"Built {len(train_samples)} samples for doc_mix_training")
+
+    # Create model
+    # Note: device parameter here avoids an extra .to(device) call
+    model = SentenceTransformer(args.model_name, trust_remote_code=True, device=str(device))
+    model.max_seq_length = 512
+
+    # Memory savers
+    first = getattr(model, "_first_module", None)
+    if callable(first):
+        first = model._first_module()
+    else:
+        # Fallback: index access if available
+        try:
+            first = model[0]
+        except Exception:
+            first = None
+
+    if first is not None:
+        am = getattr(first, "auto_model", None)
+        if am is not None:
+            if hasattr(am, "gradient_checkpointing_enable"):
+                am.gradient_checkpointing_enable()
+            if hasattr(am, "config") and hasattr(am.config, "use_cache"):
+                am.config.use_cache = False
+
+    # Dataloader
+    train_dataloader = DataLoader(
+        train_samples,
+        batch_size=args.batch_size,   # 8
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+        drop_last=True,
+        collate_fn=model.smart_batching_collate,
+    )
+
+    train_loss = losses.MultipleNegativesRankingLoss(model=model)
+
+    warmup = max(10, int(0.1 * len(train_dataloader)))
+    print(f"Warmup steps: {warmup} (of {len(train_dataloader)} iters)")
+    model.fit(
+        train_objectives=[(train_dataloader, train_loss)],
+        epochs=args.epochs,
+        warmup_steps=warmup,
+        show_progress_bar=True,
+        use_amp=bool(args.fp16),
+        max_grad_norm=args.max_grad_norm,
+        weight_decay=0.01,
+
+    )
+
+    # Save
+    save_name = f"{args.model_name.replace('/', '_')}-doc_mix_training-{args.sample_size}-samples-seed{seed}"
+    save_path = os.path.join(training_model_path, save_name)
+    model.save(save_path)
+    print(f"Saved: {save_path}")
+    return save_path
+
+# ----------------------------
+# Run all seeds
+# ----------------------------
+seeds = [42, 100, 123, 777, 999]
+saved = []
+for s in seeds:
+    # p = train_one_seed(s)
+
+    try:
+        p = train_one_seed(s)
+        saved.append(p)
+        zip_path = shutil.make_archive(p, "zip", p)
+        # files.download(zip_path)
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"[OOM at seed {s}] Consider lowering max_seq_len or batch_size. Error: {e}")
+        raise
+    except Exception as e:
+        print(f"[Error at seed {s}] {e}")
+        raise
+
+print("\nAll done. Saved model folders:")
+for p in saved:
+    print(" -", p)

@@ -44,12 +44,11 @@ def apply_noise_to_dataframe(df, target_cer=0.05):
     cols = ["doc_text", "query", "summary", "translation"]
     use_cols = [c for c in cols if c in df.columns]
 
-    modified_df = modified_df.join(
-        modified_df[use_cols]
-        .astype("string")        
-        .apply(lambda x: apply_ocr_noise(x, target_cer) if isinstance(x, str) else x)
-        .add_suffix("_noised")
+    noised = modified_df[use_cols].applymap(
+        lambda cell: apply_ocr_noise(cell, target_cer)
     )
+
+    modified_df = modified_df.join(noised.add_suffix("_noised"))
     
     # for col in modified_df.columns:
     #     if col == 'Index':
@@ -59,13 +58,13 @@ def apply_noise_to_dataframe(df, target_cer=0.05):
     return modified_df
 
 # sample_dataset = pd.read_csv('sample_dataset.csv')
-sample_dataset_de = pd.read_csv('C:\\Users\\z004knva\\Desktop\\OCR_Pipelines\\old_repo\\experiments\\documents_datasets\\mlsum_de.csv')
-sample_dataset_fr = pd.read_csv('C:\\Users\\z004knva\\Desktop\\OCR_Pipelines\\old_repo\\experiments\\documents_datasets\\mlsum_fr.csv')
+sample_dataset_de = pd.read_csv('mlsum_de_val.csv')
+sample_dataset_fr = pd.read_csv('mlsum_fr_val.csv')
 
-sample_dataset_corrupted = apply_noise_to_dataframe(sample_dataset_de)
-sample_dataset_corrupted = apply_noise_to_dataframe(sample_dataset_fr)
+sample_dataset_corrupted_de = apply_noise_to_dataframe(sample_dataset_de)
+sample_dataset_corrupted_fr = apply_noise_to_dataframe(sample_dataset_fr)
 
-sample_dataset_corrupted.to_csv('sample_dataset_random_noise_de.csv')
-sample_dataset_corrupted.to_csv('sample_dataset_random_noise_fr.csv')
-print('Corrupted dataset saved to sample_dataset_random_noise_fr.csv')
+sample_dataset_corrupted_de.to_csv('mlsum_de_val_random_noise.csv')
+sample_dataset_corrupted_fr.to_csv('mlsum_fr_val_random_noise.csv')
 
+print('datasets saved')
