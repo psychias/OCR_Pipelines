@@ -4,9 +4,13 @@ import random
 import string
 import pandas as pd
 
-def apply_ocr_noise(input_string, target_cer=0.05):
+def apply_ocr_noise(input_string, language, target_cer=0.05):
     if type(input_string) != str:
         input_string = str(input_string)
+
+    russian_alphabet_charset = 'абвгдезийклмнопрстуфхцчшщъыьэюя'
+    spanish_alphabet_charset = 'abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ    áéíóúüÁÉÍÓÚÜ'
+    turkish_alphabet_charset = 'abcdefghijklmnopqrstuvwyzABCDEFGHIJKLMNOPQRSTUVYWXZ    öüçğşİı'
     latin_alphabet_charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ    öüäéèà ÜÄÖ'
     n_changes = int(len(input_string) * target_cer)
     mutated = list(input_string)
@@ -17,12 +21,26 @@ def apply_ocr_noise(input_string, target_cer=0.05):
         if error_type == "substitution":
             # Choose a random index to substitute a character
             index = random.randrange(len(mutated))
-            mutated[index] = random.choice(latin_alphabet_charset)
+            if language in ['de', 'fr', 'it']:
+                mutated[index] = random.choice(latin_alphabet_charset)
+            elif language == 'ru':
+                mutated[index] = random.choice(russian_alphabet_charset)
+            elif language == 'en':
+                mutated[index] = random.choice(spanish_alphabet_charset)
+            elif language == 'tu':
+                mutated[index] = random.choice(turkish_alphabet_charset)
 
         elif error_type == "insertion":
             # Choose a random index to insert a character
             index = random.randrange(len(mutated))
-            mutated.insert(index, random.choice(latin_alphabet_charset))
+            if language in ['de', 'fr', 'it']:
+                mutated.insert(index, random.choice(latin_alphabet_charset))
+            elif language == 'ru':
+                mutated.insert(index, random.choice(russian_alphabet_charset))
+            elif language == 'en':
+                mutated.insert(index, random.choice(spanish_alphabet_charset))
+            elif language == 'tu':
+                mutated.insert(index, random.choice(turkish_alphabet_charset))
 
         elif error_type == "deletion":
             # Choose a random index to delete a character, if the string is not empty
@@ -41,14 +59,19 @@ def apply_noise_to_dataframe(df, target_cer=0.05):
     :return: Modified DataFrame
     """
     modified_df = df.copy()
-    cols = ["doc_text", "query", "summary", "translation"]
+    cols = ["text", "summary", "queries"]
     use_cols = [c for c in cols if c in df.columns]
 
-    noised = modified_df[use_cols].applymap(
-        lambda cell: apply_ocr_noise(cell, target_cer)
-    )
-
-    modified_df = modified_df.join(noised.add_suffix("_noised"))
+    # Apply noise to each column separately, using the language from each row
+    noised_data = {}
+    for col in use_cols:
+        noised_data[col + "_noised"] = modified_df.apply(
+            lambda row: apply_ocr_noise(row[col], row["language"], target_cer), axis=1
+        )
+    
+    # Convert to DataFrame and join with original
+    noised_df = pd.DataFrame(noised_data)
+    modified_df = modified_df.join(noised_df)
     
     # for col in modified_df.columns:
     #     if col == 'Index':
@@ -58,13 +81,10 @@ def apply_noise_to_dataframe(df, target_cer=0.05):
     return modified_df
 
 # sample_dataset = pd.read_csv('sample_dataset.csv')
-sample_dataset_de = pd.read_csv('mlsum_de_val.csv')
-sample_dataset_fr = pd.read_csv('mlsum_fr_val.csv')
+sample_dataset_= pd.read_csv('q_to_summary.csv')
 
-sample_dataset_corrupted_de = apply_noise_to_dataframe(sample_dataset_de)
-sample_dataset_corrupted_fr = apply_noise_to_dataframe(sample_dataset_fr)
+sample_dataset_corrupted_ = apply_noise_to_dataframe(sample_dataset_)
 
-sample_dataset_corrupted_de.to_csv('mlsum_de_val_random_noise.csv')
-sample_dataset_corrupted_fr.to_csv('mlsum_fr_val_random_noise.csv')
+sample_dataset_corrupted_.to_csv('dataset_random_noise.csv')
 
-print('datasets saved')
+print('dataset saved')

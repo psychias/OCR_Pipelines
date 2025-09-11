@@ -293,32 +293,26 @@ def train_one_seed(seed: int):
 # ----------------------------
 # Run all seeds
 # ----------------------------
+seeds = [42, 100, 123, 777, 999]
+saved = []
+for s in seeds:
+    # p = train_one_seed(s)
 
+    try:
+        p = train_one_seed(s)
+        saved.append(p)
+        zip_path = shutil.make_archive(p, "zip", p)
+        # files.download(zip_path)
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"[OOM at seed {s}] Consider lowering max_seq_len or batch_size. Error: {e}")
+        raise
+    except Exception as e:
+        print(f"[Error at seed {s}] {e}")
+        raise
 
-def main():
-    seeds = [42, 100, 123, 777, 999]
-    saved = []
-    for s in seeds:
-        # p = train_one_seed(s)
-
-        try:
-            p = train_one_seed(s)
-            saved.append(p)
-            zip_path = shutil.make_archive(p, "zip", p)
-            # files.download(zip_path)
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except torch.cuda.OutOfMemoryError as e:
-            print(f"[OOM at seed {s}] Consider lowering max_seq_len or batch_size. Error: {e}")
-            raise
-        except Exception as e:
-            print(f"[Error at seed {s}] {e}")
-            raise
-
-    print("\nAll done. Saved model folders:")
-
-
-
-if __name__ == "__main__":
-    main()
+print("\nAll done. Saved model folders:")
+for p in saved:
+    print(" -", p)
