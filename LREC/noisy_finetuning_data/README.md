@@ -16,4 +16,4 @@ noise, used for **Task B** fine-tuning.
 |------|-------------|
 | `de_docs_random_noise.csv` | German historical newspaper articles. Key columns: `deu`, `deu_04`, plus metadata (`ci_id`, `ocrqa`, `lg`, `newspaper`, `date`). |
 | `fr_docs_random_noise.csv` | French historical newspaper articles. Key columns: `fra`, `fra_04`, plus metadata. |
-| `query_doc_dataset_random_noise.csv` | Multilingual query-document pairs. Columns: `text`, `summary`, `query` (clean) and `text_noised`, `summary_noised`, `query_noised` (noisy). |
+| `query_doc_dataset_random_noise.csv` | Multilingual query-document pairs. Columns: `text`, `summary`, `query` (clean) and `text_04`, `summary_04`, `query_04` (noisy). |
