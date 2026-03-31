@@ -633,7 +633,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-            'simple': 'src/evaluation_sets/CLSD_WMT19_MN_noise.csv'
+            'simple': 'noisy_evaluation_datasets/ACL/CLSD_WMT19_MN_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -649,7 +649,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-            'simple': 'src/evaluation_sets/CLSD_WMT21_MN_noise.csv'
+            'simple': 'noisy_evaluation_datasets/ACL/CLSD_WMT21_MN_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -665,7 +665,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-            'bl-distorted': 'src/evaluation_sets/CLSD_WMT19_BLDS_noise.csv'
+            'bl-distorted': 'noisy_evaluation_datasets/ACL/CLSD_WMT19_BLDS_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -681,7 +681,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-            'bl-distorted': 'src/evaluation_sets/CLSD_WMT21_BLDS_noise.csv'
+            'bl-distorted': 'noisy_evaluation_datasets/ACL/CLSD_WMT21_BLDS_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -697,7 +697,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2019_adversarial_dataset.csv',
-            'SaltnPepper': 'src/evaluation_sets/CLSD_WMT19_SNP_noise.csv'
+            'SaltnPepper': 'noisy_evaluation_datasets/ACL/CLSD_WMT19_SNP_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
@@ -713,7 +713,7 @@ tasks = [
         ],
         'levels': {
             'clean': 'src/evaluation_sets/CLSD_wmt2021_adversarial_dataset.csv',
-            'SaltnPepper': 'src/evaluation_sets/CLSD_WMT21_SNP_noise.csv'
+            'SaltnPepper': 'noisy_evaluation_datasets/ACL/CLSD_WMT21_SNP_noise.csv'
         },
         'versions_dict': {
             'German': ['French', 'fr_adv1', 'fr_adv2', 'fr_adv3', 'fr_adv4'],
