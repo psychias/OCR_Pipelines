@@ -24,7 +24,8 @@ alignment followed by character-noise robustness training).
 | Model | Base | Description |
 |-------|------|-------------|
 | [`Alibaba-NLP/gte-multilingual-base`](https://huggingface.co/Alibaba-NLP/gte-multilingual-base) | — | Baseline GTE encoder |
-| [`impresso-project/histlux-gte-multilingual-base`](https://huggingface.co/impresso-project/histlux-gte-multilingual-base) | GTE | Fine-tuned on historical + Luxembourgish data |
+| [`impresso-project/ocr_error_denoising_lrec`](https://huggingface.co/impresso-project/ocr_error_denoising_lrec) | GTE | Fine-tuned for OCR-error denoising |
+| [`impresso-project/histlux_ocr_error_denoising_lrec`](https://huggingface.co/impresso-project/histlux_ocr_error_denoising_lrec) | GTE | Fine-tuned on historical + Luxembourgish data |
 
 ## Repository structure
 

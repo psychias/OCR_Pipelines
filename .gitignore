@@ -51,6 +51,13 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Generated OCR data & trained models
+*.pkl
+*.pkl.fingerprint
+ocrsim_noised_texts/
+miracl_noised_texts/
+trained_models/
+
 # Translations
 *.mo
 *.pot
