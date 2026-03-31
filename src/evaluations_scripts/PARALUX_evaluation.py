@@ -1,3 +1,5 @@
+# Paper: LREC 2026
+# Evaluates: ParaLux paraphrase evaluation (Luxembourgish)
 from datasets import load_dataset
 from sklearn.metrics.pairwise import cosine_similarity
 import torch

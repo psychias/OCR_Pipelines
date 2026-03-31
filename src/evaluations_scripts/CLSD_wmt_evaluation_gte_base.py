@@ -1,3 +1,5 @@
+# Paper: ACL 2025
+# Evaluates: CLSD evaluation with GTE-base (no fine-tuning)
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util

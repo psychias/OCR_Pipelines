@@ -1,3 +1,5 @@
+# Paper: LREC 2026
+# Evaluates: Historical Bitext Mining (lb-de/en/fr)
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer

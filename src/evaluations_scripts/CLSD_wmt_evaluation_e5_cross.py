@@ -1,3 +1,5 @@
+# Paper: ACL 2025
+# Evaluates: CLSD cross-noise evaluation with E5
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util

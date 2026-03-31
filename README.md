@@ -1,129 +1,101 @@
-# OCR M-GTE: Multilingual Embeddings for OCR-Robust and Historical Text Retrieval
+# OCR-Robust Multilingual Embeddings
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-yellow)](https://huggingface.co/impresso-project)
 
-## Overview
+Data, training, and evaluation code for two papers on making multilingual
+sentence embeddings resistant to OCR noise.
 
-Modern multilingual text embedding models perform well on clean contemporary text but degrade significantly on digitised historical documents, where OCR-induced character errors (substitutions, insertions, deletions) and archaic orthography distort the input signal. This degradation is especially pronounced for underrepresented languages such as Luxembourgish, where historical materials combine evolving spelling conventions with OCR artifacts absent from standard training data.
+## Papers
 
-This repository accompanies two papers that address this problem. Our **ACL 2025** paper (*Cheap Character Noise for OCR-Robust Multilingual Embeddings*) showed that fine-tuning with simple random character noise already yields measurable gains on cross-lingual semantic discrimination under OCR degradation. Our **LREC 2026** paper (*A Recipe for Adapting Multilingual Embedders to OCR-Error Robustness and Historical Texts*) extends this approach with a two-step procedure — first acquiring historical Luxembourgish through cross-lingual alignment (Task A), then adapting to OCR noise across six European languages (Task B) — and demonstrates state-of-the-art results on both OCR-robust retrieval and historical bitext mining.
-
-## Repository Structure
-
-```
-OCR_Pipelines/
-│
-├── noisy_evaluation_datasets/
-│   └── ACL/                              # Noisy CLSD evaluation CSVs (WMT19/21, 3 noise types)
-│
-├── noisy_finetuning_data/
-│   ├── ACL/                              # TED and X-News denoising pairs (DE, FR)
-│   └── LREC/                             # Historical Articles, MLSum, Luxembourgish cross-lingual
-│
-├── generate_random_character_noise/
-│   ├── generate_random_character_noise.py # Standalone multi-script OCR noise CLI
-│   └── README.md
-│
-├── src/
-│   ├── evaluation_sets/                  # Clean evaluation data + bitext mining JSONLs
-│   ├── evaluations_scripts/              # Per-model/noise-type evaluation scripts (see README.md inside)
-│   ├── finetuning/                       # Core training script + legacy noise generation
-│   ├── finetuning_data/                  # Working training data directory
-│   └── prepared_bitext_mining_format/    # Bitext mining format JSONLs
-│
-├── train_and_evaluate.py                 # Canonical LREC 2026 two-step training pipeline
-├── train_and_evaluate.ipynb              # Colab notebook version of the above
-├── train_mix_model.ipynb                 # Original Colab training notebook (ACL 2025)
-├── requirements.txt
-├── requirements_ubuntu.txt
-├── run_all_scripts.sh
-├── run_evaluations_both_models.sh
-├── run_experiments.sh
-├── LICENSE                               # AGPL-3.0
-└── README.md
-```
+| Venue | Title | Focus |
+|-------|-------|-------|
+| **ACL 2025** | *Cross-Lingual Semantic Divergence under OCR Noise* | CLSD benchmark (French ↔ German) with BLDS / MN / SNP noise |
+| **LREC 2026** | *Extending OCR-Robust Embeddings to Low-Resource Languages* | Luxembourgish alignment + historical bitext mining |
 
 ## Models
 
-| Model | HuggingFace ID | Description |
-|-------|---------------|-------------|
-| OCR-robust generalist (ACL) | [`impresso-project/OCR-robust-gte-multilingual-base`](https://huggingface.co/impresso-project/OCR-robust-gte-multilingual-base) | Task B only — denoising fine-tuning on TED + X-News |
-| OCR-robust generalist (LREC) | [`impresso-project/gte-multilingual-base-ocr-noise-robust`](https://huggingface.co/impresso-project/gte-multilingual-base-ocr-noise-robust) | Task A then B — full two-step procedure |
-| LUX specialist (LREC) | [`impresso-project/gte-multilingual-base-histlux-ocr-noise-robust`](https://huggingface.co/impresso-project/gte-multilingual-base-histlux-ocr-noise-robust) | Task A then B, optimised for historical Luxembourgish |
+| Model | Base | Description |
+|-------|------|-------------|
+| [`Alibaba-NLP/gte-multilingual-base`](https://huggingface.co/Alibaba-NLP/gte-multilingual-base) | — | Baseline GTE encoder |
+| [`impresso-project/histlux-gte-multilingual-base`](https://huggingface.co/impresso-project/histlux-gte-multilingual-base) | GTE | Fine-tuned on historical + Luxembourgish data |
 
-All models are based on [Alibaba-NLP/gte-multilingual-base](https://huggingface.co/Alibaba-NLP/gte-multilingual-base).
+## Repository structure
 
-## Datasets
-
-Training and evaluation data is split across two directories reflecting the two papers:
-
-### ACL 2025 (`noisy_evaluation_datasets/ACL/` and `noisy_finetuning_data/ACL/`)
-
-- **Evaluation**: CLSD (Cross-Lingual Semantic Discrimination) test sets derived from WMT 2019 and 2021, with three noise types (BlackLetter/Scanned, Salt-and-Pepper, Mixed).
-- **Training**: TED talk transcripts and X-News articles in German and French, paired with random character noise at ~5 %.
-
-### LREC 2026 (`noisy_finetuning_data/LREC/`)
-
-- **Historical Articles**: German and French newspaper articles from digitised 19th–20th century archives.
-- **MLSum**: Multilingual article–summary pairs (DE, ES, FR, RU, TR) with character noise.
-- **Luxembourgish cross-lingual**: Historical and modern Luxembourgish paired with German, French, and English translations.
-
-### Column Schema
-
-**Monolingual denoising pairs** (TED, X-News, Historical Articles, MLSum):
-
-| Column | Description |
-|--------|-------------|
-| `<lang>` | Clean text (ISO 639-1 code, e.g. `de`, `fr`) |
-| `<lang>_noisy` | Same text with ~5 % random character noise |
-
-**Cross-lingual pairs** (Luxembourgish files):
-
-| Column | Description |
-|--------|-------------|
-| `src_lang` | Source language (ISO 639-3, e.g. `ltz`) |
-| `tgt_lang` | Target language (ISO 639-3, e.g. `deu`, `fra`, `eng`) |
-| `src` | Source text |
-| `tgt` | Target text |
-
-**Evaluation datasets** (CLSD):
-
-| Column | Description |
-|--------|-------------|
-| `French` / `German` | Clean parallel sentences |
-| `fr_adv1`–`fr_adv4` / `de_adv1`–`de_adv4` | Noisy adversarial variants |
-| `src` / `tgt` / `src_noisy` / `tgt_noisy` | Standardised aliases (added by `normalise_columns.py`) |
-
-Run normalisation scripts to add standardised columns:
-
-```bash
-python noisy_evaluation_datasets/ACL/normalise_columns.py
-python noisy_finetuning_data/normalise_columns.py
+```
+├── ACL/
+│   ├── noisy_evaluation_datasets/   # 8 CLSD CSVs (WMT 2019 & 2021)
+│   └── noisy_finetuning_data/       # 4 TED / X-News CSVs
+├── LREC/
+│   ├── noisy_evaluation_datasets/   # 6 HistBIM JSONLs + 4 X-STS17 CSVs
+│   ├── noisy_finetuning_data/       # 3 historical-article CSVs
+│   └── luxembourgish_dataset/       # 3 parallel JSONLs (≈120k pairs)
+├── generate_random_character_noise/ # Synthetic OCR noise with confusable tables
+├── ocr_simulator/                   # OCR simulation pipeline (from impresso)
+├── src/
+│   ├── evaluations_scripts/         # 17 evaluation scripts (annotated per paper)
+│   ├── finetuning/                  # Training code (InputExample + MNRL)
+│   ├── evaluation_sets/             # (legacy) moved to ACL/ and LREC/
+│   └── finetuning_data/             # (legacy) moved to ACL/ and LREC/
+├── scripts/                         # Shell helpers
+├── _tools/                          # normalise_columns.py
+├── sample_training.ipynb            # Minimal 2-stage training notebook
+├── train_mix_model.ipynb            # Full experiment notebook
+├── requirements.txt                 # Pinned Python dependencies
+└── LICENSE                          # AGPL-3.0
 ```
 
-## Quick Start
+## Column naming convention
 
-### Generate OCR Noise
+All data files follow a consistent column scheme:
+
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `{lang3}` | Clean text in ISO 639-3 | `deu`, `fra`, `eng` |
+| `{lang3}_04` | Noised text (CER ≈ 0.04) | `deu_04`, `fra_04` |
+
+Additional noise-rate variants (e.g. `*_random10`, `*_random15`) and
+adversarial columns (`de_adv2`–`de_adv4`) are retained where present.
+
+## Quick start
 
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Generate OCR noise for a CSV
 python generate_random_character_noise/generate_random_character_noise.py \
-    --input_file  noisy_finetuning_data/ACL/TED_data_random_noise.csv \
-    --output_file /tmp/ted_noised.csv \
-    --target_columns german french \
-    --script latin \
-    --noise_rate 0.05
+    data.csv --columns deu fra --script latin --cer 0.04 -o noised.csv
+
+# Run a CLSD evaluation
+python src/evaluations_scripts/CLSD_wmt_evaluation_gte_base.py
+
+# Minimal training (see sample_training.ipynb for the full walkthrough)
+jupyter notebook sample_training.ipynb
 ```
 
-See [`generate_random_character_noise/README.md`](generate_random_character_noise/README.md) for full CLI reference and examples for all supported writing systems.
+## Citation
 
-### Run the Sample Training Pipeline
+```bibtex
+@inproceedings{psychias2025acl,
+  title     = {Cross-Lingual Semantic Divergence under {OCR} Noise},
+  author    = {Psychias, Alexandros},
+  booktitle = {Proceedings of ACL 2025},
+  year      = {2025}
+}
 
-```bash
-# Two-step fine-tuning (Task A: Luxembourgish, Task B: OCR noise)
-python train_and_evaluate.py
+@inproceedings{psychias2026lrec,
+  title     = {Extending {OCR}-Robust Embeddings to Low-Resource Languages},
+  author    = {Psychias, Alexandros},
+  booktitle = {Proceedings of LREC 2026},
+  year      = {2026}
+}
 ```
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 Or open [`train_and_evaluate.ipynb`](train_and_evaluate.ipynb) in Google Colab.
 

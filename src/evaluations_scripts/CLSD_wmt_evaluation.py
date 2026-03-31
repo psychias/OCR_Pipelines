@@ -1,3 +1,5 @@
+# Paper: ACL 2025
+# Evaluates: CLSD cross-lingual semantic divergence on WMT adversarial data
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util

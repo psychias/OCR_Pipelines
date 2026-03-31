@@ -1,3 +1,5 @@
+# Paper: LREC 2026
+# Evaluates: Cross-lingual STS17 (ar-en, en-es, es-en, tr-en)
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util

@@ -1,3 +1,5 @@
+# Paper: ACL 2025
+# Evaluates: CLSD monolingual evaluation with GTE (BLDS noise)
 import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
