@@ -1,4 +1,4 @@
-# ACL – Noisy Fine-tuning Data
+# Noisy Fine-tuning Data – ACL
 
 Parallel clean / OCR-noised sentence pairs used for **Task B** fine-tuning
 (noise-robust cross-lingual embedding alignment).
@@ -12,8 +12,8 @@ Parallel clean / OCR-noised sentence pairs used for **Task B** fine-tuning
 | `deu_04` | German text with synthetic OCR noise (CER ≈ 0.04) |
 | `fra_04` | French text with synthetic OCR noise (CER ≈ 0.04) |
 
-Additional noise-rate variants (`deu_10`, `deu_15`, `fra_10`, `fra_15`) and
-realistic-noise columns (`deu_snp`, `fra_snp`) are retained where present.
+Additional noise-rate variants (`*_random10`, `*_random15`) are retained
+where present.
 
 ## Files
 
